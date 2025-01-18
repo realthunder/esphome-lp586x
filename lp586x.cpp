@@ -260,9 +260,12 @@ void LP586XLightOutput::write_state(light::LightState *state) {
   uint32_t now = micros();
   if (*this->max_refresh_rate_ != 0 && (now - this->last_refresh_) < *this->max_refresh_rate_) {
     // try again next loop iteration, so that this change won't get lost
+    ESP_LOGW(TAG, "skip write state");
     this->schedule_show();
     return;
   }
+
+  // ESP_LOGI(TAG, "%lu write state", esp_log_timestamp());
   this->last_refresh_ = now;
   this->mark_shown_();
 
@@ -273,7 +276,10 @@ void LP586XLightOutput::write_state(light::LightState *state) {
     this->write_data(Color_Group_R_Current_Register, current_limits_, 3);
   }
 
-	this->write_data(LED_Dot_Current_Register_Start,this->buf_,3*this->num_leds_);
+  if (current_changed_) {
+    current_changed_ = false;
+	  this->write_data(LED_Dot_Current_Register_Start,this->buf_,3*this->num_leds_);
+  }
 
   this->status_clear_warning();
 }
@@ -312,6 +318,7 @@ light::ESPColorView LP586XLightOutput::get_view_internal(int32_t index) const {
       b = 0;
       break;
   }
+  current_changed_ = true;
   return {this->buf_ + (index * 3) + r,
           this->buf_ + (index * 3) + g,
           this->buf_ + (index * 3) + b,

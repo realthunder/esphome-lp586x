@@ -105,6 +105,7 @@ class LP586XLightOutput : public light::AddressableLight, public i2c::I2CDevice 
 
   uint8_t current_limits_[3];
   bool current_limit_changed_{false};
+  mutable bool current_changed_{false};
 
   GPIOPin *sync_pin_{nullptr};
   GPIOPin *vio_en_pin_{nullptr};
