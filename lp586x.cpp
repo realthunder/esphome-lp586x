@@ -190,6 +190,15 @@ void LP586XLightOutput::setup() {
 
   dump_config();
 
+
+  this->semaphore_ = xSemaphoreCreateBinary();
+  if (!this->semaphore_) {
+    ESP_LOGE(TAG, "Cannot allocate LED lock!");
+    this->mark_failed();
+    return;
+  }
+  xSemaphoreGive(this->semaphore_);
+
   if (this->sync_pin_) {
     this->sync_pin_->setup();
     this->sync_pin_->digital_write(false);
@@ -257,16 +266,27 @@ void LP586XLightOutput::setup() {
 
 void LP586XLightOutput::write_state(light::LightState *state) {
   // protect from refreshing too often
-  uint32_t now = micros();
-  if (*this->max_refresh_rate_ != 0 && (now - this->last_refresh_) < *this->max_refresh_rate_) {
-    // try again next loop iteration, so that this change won't get lost
-    ESP_LOGW(TAG, "skip write state");
+  //
+  // uint32_t now = micros();
+  // if (*this->max_refresh_rate_ != 0 && (now - this->last_refresh_) < *this->max_refresh_rate_) {
+  //   // try again next loop iteration, so that this change won't get lost
+  //   ESP_LOGW(TAG, "skip write state");
+  //   this->schedule_show();
+  //   return;
+  // }
+  // this->last_refresh_ = now;
+
+
+  if (!current_limit_changed_ && !current_changed_)
+    return;
+
+  if (!xSemaphoreTake(this->semaphore_, 100 / portTICK_PERIOD_MS)) {
+    ESP_LOGW(TAG, "time out");
     this->schedule_show();
     return;
   }
 
   // ESP_LOGI(TAG, "%lu write state", esp_log_timestamp());
-  this->last_refresh_ = now;
   this->mark_shown_();
 
   ESP_LOGVV(TAG, "Writing RGB values...");
@@ -282,6 +302,7 @@ void LP586XLightOutput::write_state(light::LightState *state) {
   }
 
   this->status_clear_warning();
+  xSemaphoreGive(this->semaphore_);
 }
 
 light::ESPColorView LP586XLightOutput::get_view_internal(int32_t index) const {

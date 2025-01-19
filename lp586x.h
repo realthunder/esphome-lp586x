@@ -109,6 +109,8 @@ class LP586XLightOutput : public light::AddressableLight, public i2c::I2CDevice 
 
   GPIOPin *sync_pin_{nullptr};
   GPIOPin *vio_en_pin_{nullptr};
+
+  SemaphoreHandle_t semaphore_{0};
 };
 
 }  // namespace lp586x
